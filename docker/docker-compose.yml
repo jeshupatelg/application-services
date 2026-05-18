@@ -1,0 +1,12 @@
+services:
+  portfolio-orchestrator:
+    build:
+      context: ../
+      dockerfile: docker/Dockerfile
+    container_name: portfolio-orchestrator
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - CUSTOM_VAR=orchestrator-docker-compose-val
+    restart: on-failure
