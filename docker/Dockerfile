@@ -11,8 +11,8 @@ WORKDIR /app
 # This expects the context to be the repository root
 COPY app/common/target/portfolio-orchestrator.jar app.jar
 
-# Ensure the appuser owns the application files
-RUN chown -R appuser:appgroup /app
+# Create shared static folder and ensure correct non-root permissions
+RUN mkdir -p /app/shared && chown -R appuser:appgroup /app /app/shared
 
 # Switch to the non-root user
 USER appuser

@@ -15,3 +15,8 @@ management:
       show-details: always
       probes:
         enabled: true
+
+portfolio:
+  sandbox:
+    url: ${PORTFOLIO_SANDBOX_URL}
+
