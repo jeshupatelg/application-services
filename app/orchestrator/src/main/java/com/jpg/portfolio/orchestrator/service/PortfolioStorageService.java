@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.*;
 import java.nio.file.*;
+import java.util.Objects;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -75,7 +76,7 @@ public class PortfolioStorageService {
         }
         File baseDir = new File(sharedDirRoot);
         File userDir = new File(baseDir, username);
-        return userDir.exists() && userDir.isDirectory() && userDir.list() != null && userDir.list().length > 0;
+        return userDir.exists() && userDir.isDirectory() && userDir.list() != null && Objects.requireNonNull(userDir.list()).length > 0;
     }
 
     public void deletePortfolio(String username) {

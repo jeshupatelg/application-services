@@ -1,3 +1,4 @@
+# IGNORE: Strictly used for optional local container sandbox testing. Not required or used for K8s/Helm deployment.
 services:
   portfolio-orchestrator:
     build:

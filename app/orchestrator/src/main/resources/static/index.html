@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portfolio Management Dashboard</title>
+    <!-- Modern Premium Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Premium Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Link Extracted CSS -->
+    <link rel="stylesheet" href="/app/portfolio/admin/css/style.css">
+</head>
+<body>
+
+    <header>
+        <div class="header-container">
+            <div class="logo">
+                <i class="fa-solid fa-network-wired"></i>
+                Portfolio Orchestrator
+            </div>
+            <div class="user-badge" id="userBadge">
+                <i class="fa-solid fa-circle-user"></i>
+                <span id="usernameDisplay">Loading User...</span>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="dashboard-header">
+            <div class="dashboard-title">
+                <h1>Deployment Dashboard</h1>
+                <p>Manage and orchestrate static portfolio zip versions in isolated sandboxes.</p>
+            </div>
+            
+            <div class="header-controls">
+                <div class="active-version-card" id="activeVersionCard" style="display: none;">
+                    <div class="active-icon">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+                    <div class="active-info">
+                        <span class="active-label">Active Version</span>
+                        <span class="active-val" id="activeVersionDisplay">None</span>
+                    </div>
+                </div>
+                
+                <button id="uploadTriggerBtn" class="btn btn-primary-upload">
+                    <i class="fa-solid fa-circle-plus"></i> Upload New Version
+                </button>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <div id="loader" class="loader">
+                <i class="fa-solid fa-circle-notch"></i>
+            </div>
+            
+            <table id="versionsTable" style="display: none;">
+                <thead>
+                    <tr>
+                        <th>Version</th>
+                        <th>Release Type</th>
+                        <th>Tags</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <!-- Dynamic rendering via JavaScript -->
+                </tbody>
+            </table>
+
+            <div id="emptyState" class="empty-state" style="display: none;">
+                <i class="fa-regular fa-folder-open"></i>
+                <h3>No Versions Found</h3>
+                <p>Upload a zip archive to generate your first active portfolio deployment.</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Link Extracted JS -->
+    <script src="/app/portfolio/admin/js/dashboard.js" defer></script>
+</body>
+</html>

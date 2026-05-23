@@ -42,7 +42,7 @@ public class Generators {
             if (username == null || version == null) {
                 return "";
             }
-            return "/app/portfolio/admin/" + username + "/download/" + version;
+            return "/app/portfolio/admin/download/" + version;
         }
     }
 }

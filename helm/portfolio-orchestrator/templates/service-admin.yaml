@@ -1,8 +1,8 @@
-{{- if not .Values.ingress.enabled -}}
+{{- if .Values.ingress.enabled -}}
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "portfolio-orchestrator.fullname" . }}
+  name: {{ include "portfolio-orchestrator.fullname" . }}-admin
   labels:
     {{- include "portfolio-orchestrator.labels" . | nindent 4 }}
 spec:
@@ -12,10 +12,6 @@ spec:
       targetPort: {{ .Values.service.adminTargetPort | default 8080 }}
       protocol: TCP
       name: admin
-    - port: {{ .Values.service.displayPort | default 80 }}
-      targetPort: {{ .Values.service.displayTargetPort | default 80 }}
-      protocol: TCP
-      name: display
   selector:
     {{- include "portfolio-orchestrator.selectorLabels" . | nindent 4 }}
 {{- end }}

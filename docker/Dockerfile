@@ -1,6 +1,9 @@
 # Use a lightweight JRE 21 Alpine image for execution
 FROM eclipse-temurin:21-jre-alpine
 
+# Install curl inside the container for advanced debugging and health checks
+RUN apk add --no-cache curl
+
 # Set non-root system user for improved container security
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 

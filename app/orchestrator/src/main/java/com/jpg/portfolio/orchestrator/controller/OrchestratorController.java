@@ -27,7 +27,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 
 @RestController
-@RequestMapping("/app/portfolio/admin")
+@RequestMapping("/admin")
 public class OrchestratorController {
 
     private final UserRepository userRepository;
@@ -46,16 +46,68 @@ public class OrchestratorController {
         this.portfolioStorageService = portfolioStorageService;
     }
 
-    private boolean isUnAuthorizedUser(HttpServletRequest request, String pathUsername) {
-        String tokenUsername = (String) request.getAttribute("username");
-        return tokenUsername == null || !tokenUsername.equalsIgnoreCase(pathUsername);
+    // 1. GET /app/portfolio/admin - Redirect to the static dashboard page
+    @GetMapping(value = {"", "/"}, produces = MediaType.TEXT_HTML_VALUE)
+    public ResponseEntity<?> getUserPortfolioPage(HttpServletRequest request) {
+        String user = (String) request.getAttribute("username");
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body("<html><body><h3>Access Denied: Unauthorized</h3></body></html>");
+        }
+
+        // Make sure the user profile exists and sync alias strictly from JWT attribute
+        UserImpl dbUser = userRepository.findByUsername(user).orElse(null);
+        String keycloakAlias = (String) request.getAttribute("alias");
+        if (dbUser == null) {
+            dbUser = new UserImpl(user);
+            dbUser.setAlias(keycloakAlias);
+            userRepository.save(dbUser);
+        } else if (keycloakAlias != null && !keycloakAlias.equals(dbUser.getAlias())) {
+            dbUser.setAlias(keycloakAlias);
+            userRepository.save(dbUser);
+        }
+
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .header(HttpHeaders.LOCATION, request.getContextPath() + "/admin/index.html")
+                .build();
     }
 
-    // 1. GET /app/portfolio/admin/{user} - Display unified portfolio versions list
-    @GetMapping("/{user}")
-    public ResponseEntity<?> getUserPortfolio(@PathVariable("user") String user, HttpServletRequest request) {
-        if (isUnAuthorizedUser(request, user)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access Denied: You can only query your own portfolio details");
+
+    // 1c. GET /app/portfolio/admin/user - JSON endpoint for user profile and active details
+    @GetMapping(value = "/user", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getUserDetails(HttpServletRequest request) {
+        String user = (String) request.getAttribute("username");
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("status", 401, "error", "Unauthorized", "message", "Access Denied: Unauthorized"));
+        }
+
+        UserImpl dbUser = userRepository.findByUsername(user).orElse(null);
+        String keycloakAlias = (String) request.getAttribute("alias");
+        if (dbUser == null) {
+            dbUser = new UserImpl(user);
+            dbUser.setAlias(keycloakAlias);
+            userRepository.save(dbUser);
+        } else if (keycloakAlias != null && !keycloakAlias.equals(dbUser.getAlias())) {
+            dbUser.setAlias(keycloakAlias);
+            userRepository.save(dbUser);
+        }
+
+        Map<String, Object> details = new HashMap<>();
+        details.put("username", dbUser.getUserName());
+        details.put("alias", dbUser.getAlias());
+        details.put("active", dbUser.getActive());
+        details.put("latest", dbUser.getLatest());
+
+        return ResponseEntity.ok(details);
+    }
+
+    // 1b. GET /app/portfolio/admin/versions - JSON endpoint for version list details
+    @GetMapping(value = "/versions", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getUserPortfolioVersions(HttpServletRequest request) {
+        String user = (String) request.getAttribute("username");
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Access Denied: Unauthorized");
         }
 
         UserImpl dbUser = userRepository.findByUsername(user).orElse(null);
@@ -81,10 +133,9 @@ public class OrchestratorController {
         return ResponseEntity.ok(response);
     }
 
-    // 2. POST /app/portfolio/admin/{user}/upload - Upload active portfolio version
-    @PostMapping(value = "/{user}/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    // 2. POST /app/portfolio/admin/upload - Upload active portfolio version
+    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> uploadPortfolioVersion(
-            @PathVariable("user") String user,
             @RequestParam("zip") MultipartFile file,
             @RequestParam(value = "isMajor", defaultValue = "false") boolean isMajor,
             @RequestParam(value = "tag", required = false) List<String> tags,
@@ -92,8 +143,9 @@ public class OrchestratorController {
             @RequestParam(value = "setActive", defaultValue = "false") boolean setActive,
             HttpServletRequest request) {
 
-        if (isUnAuthorizedUser(request, user)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access Denied: You cannot upload files for another user");
+        String user = (String) request.getAttribute("username");
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Access Denied: Unauthorized");
         }
 
         try {
@@ -120,6 +172,9 @@ public class OrchestratorController {
             String nextVersion = Generators.VersionGenerator.generateVersion(dbUser, isMajor);
             String downloadLink = Generators.DownloadLinkGenerator.generateDownloadLink(user, nextVersion);
 
+            // First version (v1.0) must always be marked as a Major release
+            boolean finalIsMajor = "v1.0".equals(nextVersion) || isMajor;
+
             // Persist as ActiveArtifact instance polymorphically in artifacts table
             Artifact artifact = new ActiveArtifact(
                     nextVersion,
@@ -128,7 +183,7 @@ public class OrchestratorController {
                     downloadLink,
                     desc != null ? desc : "",
                     LocalDateTime.now(),
-                    isMajor,
+                    finalIsMajor,
                     dbUser
             );
 
@@ -154,15 +209,15 @@ public class OrchestratorController {
         }
     }
 
-    // 3. POST /app/portfolio/admin/{user}/active - Switch active version polymorphically
-    @PostMapping("/{user}/active")
+    // 3. POST /app/portfolio/admin/active - Switch active version polymorphically
+    @PostMapping("/active")
     public ResponseEntity<?> setActiveVersion(
-            @PathVariable("user") String user,
             @RequestParam("version") String version,
             HttpServletRequest request) {
 
-        if (isUnAuthorizedUser(request, user)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access Denied: Action unauthorized");
+        String user = (String) request.getAttribute("username");
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Access Denied: Unauthorized");
         }
 
         ValidationContext context = new ValidationContext();
@@ -195,15 +250,15 @@ public class OrchestratorController {
         }
     }
 
-    // 4. DELETE /app/portfolio/admin/{user}/versions - Bulk delete active portfolios into metadata-only states
-    @DeleteMapping("/{user}/versions")
+    // 4. DELETE /app/portfolio/admin/versions - Bulk delete active portfolios into metadata-only states
+    @DeleteMapping("/versions")
     public ResponseEntity<?> deletePortfolioVersions(
-            @PathVariable("user") String user,
             @RequestBody List<String> versionsToDelete,
             HttpServletRequest request) {
 
-        if (isUnAuthorizedUser(request, user)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access Denied: Action unauthorized");
+        String user = (String) request.getAttribute("username");
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Access Denied: Unauthorized");
         }
 
         UserImpl dbUser = userRepository.findByUsername(user).orElse(null);
@@ -263,15 +318,15 @@ public class OrchestratorController {
         return ResponseEntity.ok(responseMap);
     }
 
-    // 5. GET /app/portfolio/admin/{user}/download/{version} - Secure authenticated download endpoint
-    @GetMapping("/{user}/download/{version}")
+    // 5. GET /app/portfolio/admin/download/{version} - Secure authenticated download endpoint
+    @GetMapping("/download/{version}")
     public ResponseEntity<?> downloadVersionZip(
-            @PathVariable("user") String user,
             @PathVariable("version") String version,
             HttpServletRequest request) {
 
-        if (isUnAuthorizedUser(request, user)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access Denied: You cannot download another user's portfolios");
+        String user = (String) request.getAttribute("username");
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Access Denied: Unauthorized");
         }
 
         Artifact artifact = artifactRepository.findByVersionAndUserUsername(version, user).orElse(null);

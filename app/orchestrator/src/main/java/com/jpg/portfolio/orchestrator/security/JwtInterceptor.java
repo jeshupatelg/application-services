@@ -17,18 +17,32 @@ public class JwtInterceptor implements HandlerInterceptor {
 
     @Override
     public boolean preHandle(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull Object handler) throws Exception {
-        // Extract the Authorization header
+        // Extract the Authorization header or Cookie (for local testing support)
         String authHeader = request.getHeader("Authorization");
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            response.sendError(HttpStatus.UNAUTHORIZED.value(), "Missing or invalid Authorization header");
-            return false;
+        String token = null;
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            token = authHeader.substring(7).trim();
+        } else {
+            // Check cookies for local testing convenience
+            jakarta.servlet.http.Cookie[] cookies = request.getCookies();
+            if (cookies != null) {
+                for (jakarta.servlet.http.Cookie cookie : cookies) {
+                    if ("auth_token".equals(cookie.getName())) {
+                        token = cookie.getValue();
+                        break;
+                    }
+                }
+            }
         }
 
-        String token = authHeader.substring(7).trim();
+        if (token == null || token.trim().isEmpty()) {
+            sendUnauthorizedResponse(request, response, "Missing or invalid Authorization credentials");
+            return false;
+        }
         try {
             String[] parts = token.split("\\.");
             if (parts.length < 2) {
-                response.sendError(HttpStatus.UNAUTHORIZED.value(), "Malformed JWT token structure");
+                sendUnauthorizedResponse(request, response, "Malformed JWT token structure");
                 return false;
             }
 
@@ -37,26 +51,46 @@ public class JwtInterceptor implements HandlerInterceptor {
             String payloadJson = new String(decodedBytes);
             JsonNode payloadNode = objectMapper.readTree(payloadJson);
 
-            // Fetch the username claim (Keycloak defaults to 'preferred_username' or 'sub')
-            String username = null;
+            // Strictly extract preferred_username and name claims per OIDC contract
+            String preferredUsername = null;
             if (payloadNode.has("preferred_username")) {
-                username = payloadNode.get("preferred_username").asText();
-            } else if (payloadNode.has("sub")) {
-                username = payloadNode.get("sub").asText();
+                preferredUsername = payloadNode.get("preferred_username").asText();
             }
 
-            if (username == null || username.trim().isEmpty()) {
-                response.sendError(HttpStatus.UNAUTHORIZED.value(), "Username claim not found in JWT payload");
+            String name = null;
+            if (payloadNode.has("name")) {
+                name = payloadNode.get("name").asText();
+            }
+
+            if (preferredUsername == null || preferredUsername.trim().isEmpty()) {
+                sendUnauthorizedResponse(request, response, "preferred_username claim not found in JWT payload");
                 return false;
             }
 
-            // Inject the extracted username into request context for the controller
-            request.setAttribute("username", username);
+            // Fallback: Use preferredUsername as alias if name is null/empty
+            String alias = (name == null || name.trim().isEmpty()) ? preferredUsername : name;
+
+            // Inject preferredUsername as "username" and alias as "alias" for downstream context
+            request.setAttribute("username", preferredUsername);
+            request.setAttribute("alias", alias);
             return true;
 
         } catch (Exception e) {
-            response.sendError(HttpStatus.UNAUTHORIZED.value(), "Failed to parse JWT: " + e.getMessage());
+            sendUnauthorizedResponse(request, response, "Failed to parse JWT: " + e.getMessage());
             return false;
+        }
+    }
+
+    private void sendUnauthorizedResponse(HttpServletRequest request, HttpServletResponse response, String message) throws Exception {
+        String acceptHeader = request.getHeader("Accept");
+        if (acceptHeader != null && acceptHeader.contains("text/html")) {
+            String encodedMessage = java.net.URLEncoder.encode(message, java.nio.charset.StandardCharsets.UTF_8.toString());
+            response.sendRedirect(request.getContextPath() + "/admin/pages/unauthorized.html?error=" + encodedMessage);
+        } else {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json;charset=UTF-8");
+            String jsonResponse = "{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"" + message + "\"}";
+            response.getWriter().write(jsonResponse);
         }
     }
 }
