@@ -1,0 +1,58 @@
+<div class="modal-card">
+    <div class="modal-header">
+        <h2><i class="fa-solid fa-cloud-arrow-up"></i> Upload Portfolio</h2>
+        <button id="closeModalBtn" class="close-btn">&times;</button>
+    </div>
+    <form id="uploadForm">
+        <div class="form-group">
+            <label for="zipFile">Select Portfolio Zip Archive</label>
+            <div class="file-dropzone" id="dropzone">
+                <i class="fa-regular fa-file-zip"></i>
+                <span>Drag & drop or click to choose a .zip file</span>
+                <input type="file" id="zipFile" name="zip" accept=".zip" required>
+            </div>
+            <div id="selectedFileName" class="selected-file-name" style="display: none;"></div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group toggle-group">
+                <label class="toggle-switch">
+                    <input type="checkbox" id="isMajor" name="isMajor">
+                    <span class="slider"></span>
+                </label>
+                <div class="toggle-label">
+                    <strong>Major Release</strong>
+                    <p>Increments major version</p>
+                </div>
+            </div>
+            
+            <div class="form-group toggle-group">
+                <label class="toggle-switch">
+                    <input type="checkbox" id="setActive" name="setActive">
+                    <span class="slider"></span>
+                </label>
+                <div class="toggle-label">
+                    <strong>Set Active</strong>
+                    <p>Deploy and activate instantly</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label for="tagsInput">Tags (comma separated)</label>
+            <input type="text" id="tagsInput" placeholder="e.g. production, stable, feature-x">
+        </div>
+        
+        <div class="form-group">
+            <label for="descInput">Release Description</label>
+            <textarea id="descInput" placeholder="Describe the changes in this version..."></textarea>
+        </div>
+        
+        <div class="modal-actions">
+            <button type="button" id="cancelUploadBtn" class="btn">Cancel</button>
+            <button type="submit" id="submitUploadBtn" class="btn btn-primary-upload">
+                <i class="fa-solid fa-arrow-up-from-bracket"></i> Upload Version
+            </button>
+        </div>
+    </form>
+</div>

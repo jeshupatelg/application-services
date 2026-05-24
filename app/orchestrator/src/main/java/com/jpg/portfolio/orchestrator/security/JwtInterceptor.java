@@ -4,10 +4,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.http.HttpStatus;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
+
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
 @Component
@@ -83,8 +84,8 @@ public class JwtInterceptor implements HandlerInterceptor {
 
     private void sendUnauthorizedResponse(HttpServletRequest request, HttpServletResponse response, String message) throws Exception {
         String acceptHeader = request.getHeader("Accept");
-        if (acceptHeader != null && acceptHeader.contains("text/html")) {
-            String encodedMessage = java.net.URLEncoder.encode(message, java.nio.charset.StandardCharsets.UTF_8.toString());
+        if (acceptHeader != null && acceptHeader.contains("text/html")) {//temp for test
+            String encodedMessage = java.net.URLEncoder.encode(message, StandardCharsets.UTF_8);
             response.sendRedirect(request.getContextPath() + "/admin/pages/unauthorized.html?error=" + encodedMessage);
         } else {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);

@@ -9,7 +9,7 @@ async function fetchUserDetails() {
         const headers = {};
         const token = localStorage.getItem('auth_token');
         if (token) {
-            headers['Authorization'] = 'Bearer ' + token;
+            headers['Authorization'] = 'Bearer ' + token;//token stays server-side
         }
 
         const response = await fetch(`/app/portfolio/admin/user`, {
@@ -251,99 +251,48 @@ if (uploadTriggerBtn) {
     });
 }
 
-function injectUploadModal() {
+async function injectUploadModal() {
     // Prevent double modal generation
     if (document.getElementById('uploadOverlay')) return;
 
-    const overlay = document.createElement('div');
-    overlay.id = 'uploadOverlay';
-    overlay.className = 'modal-overlay';
-    overlay.innerHTML = `
-        <div class="modal-card">
-            <div class="modal-header">
-                <h2><i class="fa-solid fa-cloud-arrow-up"></i> Upload Portfolio</h2>
-                <button id="closeModalBtn" class="close-btn">&times;</button>
-            </div>
-            <form id="uploadForm">
-                <div class="form-group">
-                    <label for="zipFile">Select Portfolio Zip Archive</label>
-                    <div class="file-dropzone" id="dropzone">
-                        <i class="fa-regular fa-file-zip"></i>
-                        <span>Drag & drop or click to choose a .zip file</span>
-                        <input type="file" id="zipFile" name="zip" accept=".zip" required>
-                    </div>
-                    <div id="selectedFileName" class="selected-file-name" style="display: none;"></div>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group toggle-group">
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="isMajor" name="isMajor">
-                            <span class="slider"></span>
-                        </label>
-                        <div class="toggle-label">
-                            <strong>Major Release</strong>
-                            <p>Increments major version</p>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group toggle-group">
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="setActive" name="setActive">
-                            <span class="slider"></span>
-                        </label>
-                        <div class="toggle-label">
-                            <strong>Set Active</strong>
-                            <p>Deploy and activate instantly</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label for="tagsInput">Tags (comma separated)</label>
-                    <input type="text" id="tagsInput" placeholder="e.g. production, stable, feature-x">
-                </div>
-                
-                <div class="form-group">
-                    <label for="descInput">Release Description</label>
-                    <textarea id="descInput" placeholder="Describe the changes in this version..."></textarea>
-                </div>
-                
-                <div class="modal-actions">
-                    <button type="button" id="cancelUploadBtn" class="btn">Cancel</button>
-                    <button type="submit" id="submitUploadBtn" class="btn btn-primary-upload">
-                        <i class="fa-solid fa-arrow-up-from-bracket"></i> Upload Version
-                    </button>
-                </div>
-            </form>
-        </div>
-    `;
+    try {
+        // Fetch the HTML template fragment dynamically
+        const response = await fetch('/app/portfolio/admin/pages/upload-modal.html');
+        if (!response.ok) {
+            throw new Error(`Failed to load upload modal template: ${response.statusText}`);
+        }
+        const modalHtml = await response.text();
 
-    document.body.appendChild(overlay);
+        const overlay = document.createElement('div');
+        overlay.id = 'uploadOverlay';
+        overlay.className = 'modal-overlay';
+        overlay.innerHTML = modalHtml;
 
-    // Fetch newly injected elements
-    const form = document.getElementById('uploadForm');
-    const zipFileInput = document.getElementById('zipFile');
-    const dropzone = document.getElementById('dropzone');
-    const selectedFileName = document.getElementById('selectedFileName');
-    const closeModalBtn = document.getElementById('closeModalBtn');
-    const cancelUploadBtn = document.getElementById('cancelUploadBtn');
+        document.body.appendChild(overlay);
 
-    // Slide-in animation trigger
-    setTimeout(() => {
-        overlay.classList.add('active');
-    }, 50);
+        // Fetch newly injected elements
+        const form = document.getElementById('uploadForm');
+        const zipFileInput = document.getElementById('zipFile');
+        const dropzone = document.getElementById('dropzone');
+        const selectedFileName = document.getElementById('selectedFileName');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const cancelUploadBtn = document.getElementById('cancelUploadBtn');
 
-    // Cleanup overlay function
-    function dismissModal() {
-        overlay.classList.remove('active');
+        // Slide-in animation trigger
         setTimeout(() => {
-            overlay.remove();
-        }, 300);
-    }
+            overlay.classList.add('active');
+        }, 50);
 
-    closeModalBtn.addEventListener('click', dismissModal);
-    cancelUploadBtn.addEventListener('click', dismissModal);
+        // Cleanup overlay function
+        function dismissModal() {
+            overlay.classList.remove('active');
+            setTimeout(() => {
+                overlay.remove();
+            }, 300);
+        }
+
+        closeModalBtn.addEventListener('click', dismissModal);
+        cancelUploadBtn.addEventListener('click', dismissModal);
 
     // Selected file label event update
     zipFileInput.addEventListener('change', () => {
@@ -451,6 +400,14 @@ function injectUploadModal() {
             );
         }
     });
+    } catch (error) {
+        console.error("Failed to inject upload modal:", error);
+        showToast(
+            "Load Failed",
+            "Could not load the upload modal. Please try again.",
+            "error"
+        );
+    }
 }
 
 // Initialize dashboard loading sequentially to ensure loggedInUsername is resolved for status links

@@ -62,7 +62,7 @@ public class OrchestratorController {
             dbUser = new UserImpl(user);
             dbUser.setAlias(keycloakAlias);
             userRepository.save(dbUser);
-        } else if (keycloakAlias != null && !keycloakAlias.equals(dbUser.getAlias())) {
+        } else if (keycloakAlias != null && !keycloakAlias.equals(dbUser.getAlias())) {//alias is mutable since it is Name
             dbUser.setAlias(keycloakAlias);
             userRepository.save(dbUser);
         }
@@ -84,11 +84,11 @@ public class OrchestratorController {
 
         UserImpl dbUser = userRepository.findByUsername(user).orElse(null);
         String keycloakAlias = (String) request.getAttribute("alias");
-        if (dbUser == null) {
+        if (dbUser == null) {//should we create? Technically has permission since reached this far. Keeping for idempotency
             dbUser = new UserImpl(user);
             dbUser.setAlias(keycloakAlias);
             userRepository.save(dbUser);
-        } else if (keycloakAlias != null && !keycloakAlias.equals(dbUser.getAlias())) {
+        } else if (keycloakAlias != null && !keycloakAlias.equals(dbUser.getAlias())) {//alias is mutable since it is Name
             dbUser.setAlias(keycloakAlias);
             userRepository.save(dbUser);
         }
