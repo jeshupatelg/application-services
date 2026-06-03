@@ -47,6 +47,10 @@
                     </div>
                 </div>
                 
+                <button id="deleteSelectedBtn" class="btn btn-danger" style="display: none; margin-right: 0.75rem;">
+                    <i class="fa-solid fa-trash-can"></i> Delete Selected
+                </button>
+                
                 <button id="uploadTriggerBtn" class="btn btn-primary-upload">
                     <i class="fa-solid fa-circle-plus"></i> Upload New Version
                 </button>
@@ -61,6 +65,7 @@
             <table id="versionsTable" style="display: none;">
                 <thead>
                     <tr>
+                        <th style="width: 40px; text-align: center;"><input type="checkbox" id="selectAllCheckbox" class="custom-checkbox"></th>
                         <th>Version</th>
                         <th>Release Type</th>
                         <th>Tags</th>

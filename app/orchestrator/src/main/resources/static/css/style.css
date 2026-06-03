@@ -316,6 +316,49 @@ tr:hover {
     pointer-events: none;
 }
 
+.btn-danger {
+    color: #f87171;
+    border-color: rgba(248, 113, 113, 0.2);
+    background: rgba(248, 113, 113, 0.05);
+}
+
+.btn-danger:hover {
+    background: rgba(248, 113, 113, 0.15);
+    border-color: rgba(248, 113, 113, 0.4);
+    transform: translateY(-1px);
+}
+
+.btn-danger-action {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    border: none;
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+}
+
+.btn-danger-action:hover {
+    background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+    box-shadow: 0 6px 16px rgba(239, 68, 68, 0.35);
+    transform: translateY(-1px);
+}
+
+.badge-success {
+    background: rgba(52, 211, 153, 0.12);
+    border: 1px solid rgba(52, 211, 153, 0.2);
+    color: #a7f3d0;
+}
+
+.badge-danger {
+    background: rgba(248, 113, 113, 0.12);
+    border: 1px solid rgba(248, 113, 113, 0.2);
+    color: #fca5a5;
+}
+
+.badge-pending {
+    background: rgba(251, 191, 36, 0.12);
+    border: 1px solid rgba(251, 191, 36, 0.2);
+    color: #fde68a;
+}
+
 /* Empty State */
 .empty-state {
     padding: 4rem 2rem;

@@ -40,11 +40,6 @@ public class PublicDisplayController {
     // Class-level thread-safe map holding active display validation cookie session values
     private final Map<String, String> activeSessions = new ConcurrentHashMap<>();
 
-    // Configurable base URL pointing to the read-only sandbox static container
-    @Value("${portfolio.sandbox.url}")
-    private String sandboxBaseUrl;
-
-    @Autowired
     public PublicDisplayController(UserRepository userRepository,
                                    ArtifactRepository artifactRepository,
                                    PortfolioStorageService portfolioStorageService) {

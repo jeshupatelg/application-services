@@ -82,9 +82,18 @@ public class JwtInterceptor implements HandlerInterceptor {
         }
     }
 
+    /**
+     * Sends an unauthorized response to the client. If the request accepts HTML, it redirects
+     * to an unauthorized page; otherwise, it returns a 401 JSON response.<br/>Shouldn't reach here because of api-gateway.
+     *
+     * @param request the current HTTP request
+     * @param response the current HTTP response
+     * @param message the error message to include in the response
+     * @throws Exception if an I/O error occurs during response handling
+     */
     private void sendUnauthorizedResponse(HttpServletRequest request, HttpServletResponse response, String message) throws Exception {
         String acceptHeader = request.getHeader("Accept");
-        if (acceptHeader != null && acceptHeader.contains("text/html")) {//temp for test
+        if (acceptHeader != null && acceptHeader.contains("text/html")) {//temp for test.
             String encodedMessage = java.net.URLEncoder.encode(message, StandardCharsets.UTF_8);
             response.sendRedirect(request.getContextPath() + "/admin/pages/unauthorized.html?error=" + encodedMessage);
         } else {
