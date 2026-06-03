@@ -35,7 +35,6 @@ public class OrchestratorController {
     private final ValidationChain validationChain;
     private final PortfolioStorageService portfolioStorageService;
 
-    @Autowired
     public OrchestratorController(UserRepository userRepository,
                                   ArtifactRepository artifactRepository,
                                   ValidationChain validationChain,
@@ -62,7 +61,7 @@ public class OrchestratorController {
             dbUser = new UserImpl(user);
             dbUser.setAlias(keycloakAlias);
             userRepository.save(dbUser);
-        } else if (keycloakAlias != null && !keycloakAlias.equals(dbUser.getAlias())) {//alias is mutable since it is Name
+        } else if (keycloakAlias != null && !keycloakAlias.equals(dbUser.getAlias())) {//alias is mutable since it is Name -> maybe add setting to override keycloak-alias
             dbUser.setAlias(keycloakAlias);
             userRepository.save(dbUser);
         }
@@ -164,7 +163,7 @@ public class OrchestratorController {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(securityResult.getReason());
             }
 
-            UserImpl dbUser = userRepository.findByUsername(user).orElseGet(() -> {
+            UserImpl dbUser = userRepository.findByUsername(user).orElseGet(() -> {//This is pushing even for idempotency to create new user for upload
                 UserImpl newUser = new UserImpl(user);
                 return userRepository.save(newUser);
             });
@@ -335,7 +334,7 @@ public class OrchestratorController {
         }
 
         // Return 400 Bad Request if the version has been deleted
-        if (artifact instanceof DeletedArtifact) {
+        if (artifact instanceof DeletedArtifact) {//make this impossible from UI
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Requested portfolio version has been deleted");
         }
 

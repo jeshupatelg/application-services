@@ -201,7 +201,7 @@ class UserExistsValidation implements ValidationStep {
 
     @Override
     public boolean supports(ValidationScenario scenario) {
-        return scenario == ValidationScenario.ACTIVATE || scenario == ValidationScenario.DELETE;
+        return scenario == ValidationScenario.ACTIVATE || scenario == ValidationScenario.DELETE;//should also be enabled for upload
     }
 }
 

@@ -6,7 +6,10 @@ import org.springframework.stereotype.Service;
 @Service
 public class Generators {
 
-    // VersionGenerator logic to calculate next version strings dynamically
+    /**
+     * VersionGenerator logic to calculate next version strings dynamically
+     * <br/>{@code Future Note: Make it user level configurable through user setting and interface for versioning strategy}
+     */
     public static class VersionGenerator {
 
         public static String generateVersion(UserImpl user, boolean isMajor) {
@@ -35,7 +38,9 @@ public class Generators {
         }
     }
 
-    // DownloadLinkGenerator logic to formulate internal artifact download resource paths
+    /**
+     * DownloadLinkGenerator logic to formulate internal artifact download resource paths
+     */
     public static class DownloadLinkGenerator {
 
         public static String generateDownloadLink(String username, String version) {

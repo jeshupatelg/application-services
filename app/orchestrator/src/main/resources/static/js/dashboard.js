@@ -69,6 +69,17 @@ function renderDashboard(data) {
 
     document.getElementById('loader').style.display = 'none';
 
+    // Reset select all checkbox and hide delete button on render
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.style.accentColor = 'var(--primary)';
+        selectAllCheckbox.checked = false;
+    }
+    const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+    if (deleteSelectedBtn) {
+        deleteSelectedBtn.style.display = 'none';
+    }
+
     if (versions.length === 0) {
         document.getElementById('emptyState').style.display = 'block';
         document.getElementById('versionsTable').style.display = 'none';
@@ -85,6 +96,23 @@ function renderDashboard(data) {
     versions.reverse().forEach(v => {
         const row = document.createElement('tr');
         const isActive = v.version === activeVersion;
+
+        // 0. Checkbox column
+        const tdCheckbox = document.createElement('td');
+        tdCheckbox.style.textAlign = 'center';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'version-select';
+        checkbox.style.cursor = 'pointer';
+        checkbox.style.accentColor = 'var(--primary)';
+        checkbox.style.width = '16px';
+        checkbox.style.height = '16px';
+        checkbox.dataset.version = v.version;
+        checkbox.addEventListener('change', () => {
+            updateDeleteButtonVisibility();
+        });
+        tdCheckbox.appendChild(checkbox);
+        row.appendChild(tdCheckbox);
 
         // 1. Version Info
         const tdVersion = document.createElement('td');
@@ -165,6 +193,211 @@ function renderDashboard(data) {
         row.appendChild(tdActions);
         tableBody.appendChild(row);
     });
+}
+
+// Toggle visible delete button based on checkbox selection states
+function updateDeleteButtonVisibility() {
+    const checkboxes = document.querySelectorAll('.version-select:checked');
+    const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    
+    if (deleteSelectedBtn) {
+        if (checkboxes.length > 0) {
+            deleteSelectedBtn.style.display = 'inline-flex';
+        } else {
+            deleteSelectedBtn.style.display = 'none';
+        }
+    }
+    
+    if (selectAllCheckbox) {
+        const allCheckboxes = document.querySelectorAll('.version-select');
+        if (allCheckboxes.length > 0 && checkboxes.length === allCheckboxes.length) {
+            selectAllCheckbox.checked = true;
+        } else {
+            selectAllCheckbox.checked = false;
+        }
+    }
+}
+
+// Global listener for Select All checkbox
+const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+if (selectAllCheckbox) {
+    selectAllCheckbox.addEventListener('change', (e) => {
+        const checkboxes = document.querySelectorAll('.version-select');
+        checkboxes.forEach(cb => {
+            cb.checked = e.target.checked;
+        });
+        updateDeleteButtonVisibility();
+    });
+}
+
+// Global listener for Delete Selected button click
+const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+if (deleteSelectedBtn) {
+    deleteSelectedBtn.addEventListener('click', () => {
+        const selectedVersions = Array.from(document.querySelectorAll('.version-select:checked'))
+                                      .map(cb => cb.dataset.version);
+        if (selectedVersions.length > 0) {
+            injectDeleteModal(selectedVersions);
+        }
+    });
+}
+
+// ----------------- Dynamic HTML Delete Modal Snippet -----------------
+async function injectDeleteModal(selectedVersions) {
+    // Prevent double modal generation
+    if (document.getElementById('deleteOverlay')) return;
+
+    try {
+        // Fetch the HTML template fragment dynamically
+        const response = await fetch('/app/portfolio/admin/pages/delete-modal.html');
+        if (!response.ok) {
+            throw new Error(`Failed to load delete modal template: ${response.statusText}`);
+        }
+        const modalHtml = await response.text();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'deleteOverlay';
+        overlay.className = 'modal-overlay';
+        overlay.innerHTML = modalHtml;
+
+        document.body.appendChild(overlay);
+
+        const deleteModalTableBody = document.getElementById('deleteModalTableBody');
+        const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+        const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
+        const closeDeleteModalBtn = document.getElementById('closeDeleteModalBtn');
+
+        // Slide-in animation trigger
+        setTimeout(() => {
+            overlay.classList.add('active');
+        }, 50);
+
+        // Populate table with pending confirmation states
+        deleteModalTableBody.innerHTML = '';
+        selectedVersions.forEach(version => {
+            const tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid var(--border-color)';
+            
+            const tdVersion = document.createElement('td');
+            tdVersion.style.padding = '0.75rem 1rem';
+            tdVersion.style.fontWeight = '600';
+            tdVersion.textContent = version;
+            tr.appendChild(tdVersion);
+
+            const tdStatus = document.createElement('td');
+            tdStatus.style.padding = '0.75rem 1rem';
+            tdStatus.style.textAlign = 'right';
+            tdStatus.id = `status-cell-${version.replace(/\./g, '_')}`;
+            
+            const pendingBadge = document.createElement('span');
+            pendingBadge.className = 'badge badge-pending';
+            pendingBadge.innerHTML = '<i class="fa-solid fa-clock"></i> Pending';
+            tdStatus.appendChild(pendingBadge);
+            tr.appendChild(tdStatus);
+
+            deleteModalTableBody.appendChild(tr);
+        });
+
+        let isCompleted = false;
+
+        // Cleanup overlay function
+        function dismissModal() {
+            overlay.classList.remove('active');
+            setTimeout(() => {
+                overlay.remove();
+            }, 300);
+            if (isCompleted) {
+                // Re-fetch versions to refresh dashboard
+                fetchVersions();
+            }
+        }
+
+        closeDeleteModalBtn.addEventListener('click', dismissModal);
+        cancelDeleteBtn.addEventListener('click', dismissModal);
+
+        // Confirm Action trigger
+        confirmDeleteBtn.addEventListener('click', async () => {
+            // Disable interactions to prevent concurrency issues
+            confirmDeleteBtn.disabled = true;
+            cancelDeleteBtn.disabled = true;
+            closeDeleteModalBtn.style.display = 'none';
+
+            confirmDeleteBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Deleting...';
+
+            // Show intermediate "Deleting..." status
+            selectedVersions.forEach(version => {
+                const statusCell = document.getElementById(`status-cell-${version.replace(/\./g, '_')}`);
+                if (statusCell) {
+                    statusCell.innerHTML = '<span class="badge badge-pending"><i class="fa-solid fa-circle-notch fa-spin"></i> Deleting...</span>';
+                }
+            });
+
+            try {
+                const headers = {
+                    'Content-Type': 'application/json'
+                };
+                const token = localStorage.getItem('auth_token');
+                if (token) {
+                    headers['Authorization'] = 'Bearer ' + token;
+                }
+
+                const deleteResponse = await fetch('/app/portfolio/admin/versions', {
+                    method: 'DELETE',
+                    headers: headers,
+                    body: JSON.stringify(selectedVersions)
+                });
+
+                if (!deleteResponse.ok) {
+                    const errText = await deleteResponse.text();
+                    throw new Error(errText || "Delete action failed");
+                }
+
+                const results = await deleteResponse.json();
+                isCompleted = true; // Flag completed so close triggers refresh
+
+                // Update status table dynamically
+                selectedVersions.forEach(version => {
+                    const statusCell = document.getElementById(`status-cell-${version.replace(/\./g, '_')}`);
+                    if (statusCell) {
+                        const res = results[version];
+                        if (res && res.status === 'SUCCESS') {
+                            statusCell.innerHTML = '<span class="badge badge-success"><i class="fa-solid fa-circle-check"></i> Success</span>';
+                        } else {
+                            const reason = (res && res.reason) ? res.reason : 'Failed';
+                            statusCell.innerHTML = `<span class="badge badge-danger" title="${reason}"><i class="fa-solid fa-circle-xmark"></i> Failed: ${reason}</span>`;
+                        }
+                    }
+                });
+
+                showToast('Bulk Delete Completed', 'Selected versions processed successfully.', 'success');
+
+            } catch (err) {
+                console.error("Bulk delete failed:", err);
+                isCompleted = true;
+
+                // Update all cells to show failed
+                selectedVersions.forEach(version => {
+                    const statusCell = document.getElementById(`status-cell-${version.replace(/\./g, '_')}`);
+                    if (statusCell) {
+                        statusCell.innerHTML = `<span class="badge badge-danger" title="${err.message}"><i class="fa-solid fa-circle-xmark"></i> Failed: ${err.message}</span>`;
+                    }
+                });
+
+                showToast('Bulk Delete Failed', err.message, 'error');
+            } finally {
+                // Restore dismissal as close option
+                cancelDeleteBtn.textContent = 'Close';
+                cancelDeleteBtn.disabled = false;
+                confirmDeleteBtn.style.display = 'none';
+                closeDeleteModalBtn.style.display = 'block';
+            }
+        });
+
+    } catch (error) {
+        console.error("Failed to inject delete modal:", error);
+        showToast("Load Failed", "Could not load the delete modal. Please try again.", "error");
+    }
 }
 
 // Action trigger: Activate selected version
