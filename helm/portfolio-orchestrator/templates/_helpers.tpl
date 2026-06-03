@@ -48,6 +48,7 @@ Selector labels
 {{- define "portfolio-orchestrator.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "portfolio-orchestrator.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
+app: {{ include "portfolio-orchestrator.name" . }}
 {{- end }}
 
 {{/*

@@ -5,10 +5,10 @@
 replicaCount: 1
 
 image:
-  repository: jpg/portfolio-orchestrator
+  repository: jeshupatelg/portfolio-orchestrator
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "latest"
+  tag: "ed1"
 
 imagePullSecrets: []
 nameOverride: ""
@@ -38,24 +38,37 @@ securityContext: {}
 
 service:
   type: ClusterIP
-  port: 8080
-  targetPort: 8080
+  adminPort: 8080
+  adminTargetPort: 8080
+  displayPort: 80
+  displayTargetPort: 80
+
+sandbox:
+  image:
+    repository: nginx
+    tag: alpine
+    pullPolicy: IfNotPresent
+  # Configure the external base URL for static display redirects. If left blank, 
+  # it dynamically derives from http://<ingress.host>/app/portfolio/display.
+  url: ""
 
 ingress:
-  enabled: false
+  enabled: true
   className: ""
   annotations: {}
     # kubernetes.io/ingress.class: nginx
     # kubernetes.io/tls-acme: "true"
-  hosts:
-    - host: portfolio-orchestrator.local
-      paths:
-        - path: /
-          pathType: ImplementationSpecific
+  
+  # -- Double-Prefix / 504 Gateway Timeout Resolution --
+  # If your app sees duplicated paths (e.g. /app/portfolio/app/portfolio/admin), 
+  # set useRegex to true and specify the rewriteTarget below.
+  # This will automatically render the correct Nginx Ingress regex annotations and paths.
+  useRegex: false
+  rewriteTarget: "" # e.g. "/app/portfolio/$1$2"
+  
+  host: portfolio-orchestrator.local
   tls: []
-  #  - secretName: chart-example-tls
-  #    hosts:
-  #      - chart-example.local
+  #  - secretName: portfolio-orchestrator-tls
 
 resources:
   # We establish reasonable resource limits and requests for a Spring Boot service.

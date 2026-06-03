@@ -1,0 +1,74 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "portfolio-orchestrator.fullname" . }}-nginx-config
+  labels:
+    {{- include "portfolio-orchestrator.labels" . | nindent 4 }}
+data:
+  default.conf: |
+    server {
+        listen 80;
+        server_name localhost;
+
+        # 1. Entrypoint mapping: Force all landing-page / entry requests to hit Spring Boot (8080) for Auth & Dynamic Unpack
+        location ~ ^/app/portfolio/display/([^/]+)$ {
+            proxy_pass http://127.0.0.1:8080;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            # Forward the original protocol (HTTP/HTTPS) from Ingress, falling back to local scheme
+            set $x_proto $http_x_forwarded_proto;
+            if ($x_proto = "") {
+                set $x_proto $scheme;
+            }
+            proxy_set_header X-Forwarded-Proto $x_proto;
+        }
+
+        # 2. Static Asset serving: Protected by auth_request sub-routing
+        location ~ ^/app/portfolio/display/([^/]+)/(.*)$ {
+            set $display_user $1;
+            auth_request /app/portfolio/display/auth_check;
+            
+            # Intercept 401 Unauthorized errors from auth subrequest and redirect to dynamic entrypoint
+            error_page 401 = @unauth_redirect;
+            
+            root /usr/share/nginx/html;
+            try_files $uri $uri/ =404;
+        }
+
+        # 3. Stateless internal subrequest verifying the display_auth cookie
+        location = /app/portfolio/display/auth_check {
+            internal;
+            
+            # Rewrite URI to include username extracted from original request URI
+            # (Avoids dynamic proxy_pass hostname variables which require a DNS resolver)
+            if ($request_uri ~ ^/app/portfolio/display/([^/]+)/) {
+                set $display_user $1;
+                rewrite ^.*$ /app/portfolio/display/auth/$display_user break;
+            }
+            
+            proxy_pass http://127.0.0.1:8080;
+            proxy_pass_request_body off;
+            proxy_set_header Content-Length "";
+            proxy_set_header Cookie $http_cookie;
+        }
+
+        # 4. Redirect target for unauthenticated static attempts
+        location @unauth_redirect {
+            return 302 /app/portfolio/display/$display_user;
+        }
+
+        # 3. Fallback: Proxy unresolved requests to Spring Boot
+        location @fallback {
+            proxy_pass http://127.0.0.1:8080;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            # Forward the original protocol (HTTP/HTTPS) from Ingress, falling back to local scheme
+            set $x_proto $http_x_forwarded_proto;
+            if ($x_proto = "") {
+                set $x_proto $scheme;
+            }
+            proxy_set_header X-Forwarded-Proto $x_proto;
+        }
+    }

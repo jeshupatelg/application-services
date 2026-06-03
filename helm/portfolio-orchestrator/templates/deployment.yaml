@@ -34,32 +34,53 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
-            - name: http
-              containerPort: {{ .Values.service.targetPort | default 8080 }}
+            - name: admin
+              containerPort: {{ .Values.service.adminTargetPort | default 8080 }}
               protocol: TCP
           env:
             - name: SPRING_PROFILES_ACTIVE
               value: {{ .Values.config.activeProfile | quote }}
             - name: CUSTOM_VAR
               value: {{ .Values.config.customVar | quote }}
+            - name: JAVA_OPTS
+              value: "-Dlogging.config=/config/logback.xml"
+            - name: PORTFOLIO_SANDBOX_URL
+              value: {{ .Values.sandbox.url | default (printf "http://%s/app/portfolio/display" .Values.ingress.host) | quote }}
           livenessProbe:
             httpGet:
-              path: /actuator/health/liveness
-              port: http
+              path: /app/portfolio/actuator/health/liveness
+              port: admin
             initialDelaySeconds: 30
-            periodSeconds: 10
+            periodSeconds: 20
             timeoutSeconds: 3
             failureThreshold: 3
           readinessProbe:
             httpGet:
-              path: /actuator/health/readiness
-              port: http
+              path: /app/portfolio/actuator/health/readiness
+              port: admin
             initialDelaySeconds: 20
-            periodSeconds: 10
+            periodSeconds: 20
             timeoutSeconds: 3
             failureThreshold: 3
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: portfolio-static
+              mountPath: /app/shared
+            - name: logback-config
+              mountPath: /config
+        - name: sandbox
+          image: "{{ .Values.sandbox.image.repository }}:{{ .Values.sandbox.image.tag | default "alpine" }}"
+          imagePullPolicy: {{ .Values.sandbox.image.pullPolicy | default "IfNotPresent" }}
+          ports:
+            - name: display
+              containerPort: 80
+              protocol: TCP
+          volumeMounts:
+            - name: portfolio-static
+              mountPath: /usr/share/nginx/html/app/portfolio/display
+            - name: nginx-config
+              mountPath: /etc/nginx/conf.d
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -72,3 +93,12 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      volumes:
+        - name: portfolio-static
+          emptyDir: {}
+        - name: nginx-config
+          configMap:
+            name: {{ include "portfolio-orchestrator.fullname" . }}-nginx-config
+        - name: logback-config
+          configMap:
+            name: {{ include "portfolio-orchestrator.fullname" . }}-logback
