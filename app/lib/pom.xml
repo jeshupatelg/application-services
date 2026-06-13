@@ -6,19 +6,18 @@
 
     <parent>
         <groupId>com.jpg</groupId>
-        <artifactId>application-services</artifactId>
+        <artifactId>app</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>app</artifactId>
+    <artifactId>lib</artifactId>
     <packaging>pom</packaging>
-    <name>app</name>
-    <description>Application modules container</description>
+    <name>lib</name>
+    <description>Library modules container</description>
 
     <modules>
-        <module>lib</module>
-        <module>ms</module>
+        <module>startup-lib</module>
     </modules>
 
 </project>

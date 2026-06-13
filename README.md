@@ -1,4 +1,4 @@
-# Portfolio Orchestrator
+# Application Services
 
 A lightweight, high-performance modular microservice that orchestrates financial portfolio holdings and values, designed to deploy seamlessly in Kubernetes and Docker container environments.
 
@@ -9,8 +9,8 @@ A lightweight, high-performance modular microservice that orchestrates financial
 This repository is structured as a **multi-module Maven project** to maintain separate concerns and clean component isolation, mirroring the architecture of the `api-gateway` project:
 
 1. **`app`**: The application parent wrapper module.
-   - **`common`**: The **entry execution module** that compiles the main class, houses the configurations, and builds the final fat JAR.
-   - **`orchestrator`**: A **library module** containing core controllers, DTOs, and business logic that `common` imports.
+   - **`lib/common`**: A shared library module containing core models, schemas, and common configurations.
+   - **`ms/orchestrator`**: The runnable entry execution service that imports `common`, houses controllers and orchestration logic, and builds the final fat JAR.
 2. **`helm`**: The Kubernetes packaging module containing the Helm chart configurations.
 3. **`docker`**: The Docker configuration module containing containerization files.
 
@@ -29,16 +29,16 @@ To clean compile the codebase, run tests, and package the executable JAR, execut
 ./mvnw clean install
 ```
 The runnable Spring Boot fat JAR will be packaged in the entry module target folder:
-`app/common/target/portfolio-orchestrator.jar`
+`app/ms/orchestrator/target/application-services.jar`
 
 ### Running the Microservice
 You can run the application directly using the Maven plugin from the root:
 ```bash
-./mvnw -pl app/common spring-boot:run
+./mvnw -pl app/ms/orchestrator spring-boot:run
 ```
 Alternatively, execute the packaged JAR:
 ```bash
-java -jar app/common/target/portfolio-orchestrator.jar
+java -jar app/ms/orchestrator/target/application-services.jar
 ```
 
 ---
@@ -60,8 +60,8 @@ To build and run the application locally inside Docker containers, follow these 
 ### Manual Docker Build
 If you prefer building the image manually from the repository root:
 ```bash
-docker build -t jpg/portfolio-orchestrator:latest -f docker/Dockerfile .
-docker run -d -p 8080:8080 --name portfolio-orchestrator jpg/portfolio-orchestrator:latest
+docker build -t jpg/application-services:latest -f docker/orchestrator/Dockerfile .
+docker run -d -p 8080:8080 --name application-services jpg/application-services:latest
 ```
 
 ---
@@ -167,13 +167,13 @@ graph TD
 To deploy the **Portfolio Orchestrator** inside a Kubernetes cluster, configure the target namespace and run:
 
 ```bash
-helm upgrade --install portfolio-orchestrator ./helm/portfolio-orchestrator \
+helm upgrade --install application-services ./helm/orchestrator \
   --namespace default \
-  --values ./helm/portfolio-orchestrator/values.yaml
+  --values ./helm/orchestrator/values.yaml
 ```
 
 ### Configurable Deployment Values
-Review and update `helm/portfolio-orchestrator/values.yaml` to configure:
+Review and update `helm/orchestrator/values.yaml` to configure:
 - **`replicaCount`**: Number of running pod instances.
 - **`image`**: Repository, tag, and pullPolicy details.
 - **`resources`**: Memory/CPU requests and limits.

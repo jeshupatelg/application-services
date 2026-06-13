@@ -1,0 +1,18 @@
+{{- if .Values.ingress.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "application-services.fullname" . }}-display
+  labels:
+    {{- include "application-services.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.displayPort | default 80 }}
+      targetPort: {{ .Values.service.displayTargetPort | default 80 }}
+      protocol: TCP
+      name: display
+  selector:
+    {{- include "application-services.selectorLabels" . | nindent 4 }}
+{{- end }}
+

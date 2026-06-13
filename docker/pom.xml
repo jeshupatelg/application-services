@@ -6,7 +6,7 @@
 
     <parent>
         <groupId>com.jpg</groupId>
-        <artifactId>portfolio-orchestrator</artifactId>
+        <artifactId>application-services</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
@@ -15,5 +15,9 @@
     <packaging>pom</packaging>
     <name>docker</name>
     <description>Docker container orchestration files</description>
+
+    <modules>
+        <module>orchestrator</module>
+    </modules>
 
 </project>

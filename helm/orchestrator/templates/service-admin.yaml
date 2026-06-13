@@ -1,0 +1,18 @@
+{{- if .Values.ingress.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "application-services.fullname" . }}-admin
+  labels:
+    {{- include "application-services.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.adminPort | default 8080 }}
+      targetPort: {{ .Values.service.adminTargetPort | default 8080 }}
+      protocol: TCP
+      name: admin
+  selector:
+    {{- include "application-services.selectorLabels" . | nindent 4 }}
+{{- end }}
+

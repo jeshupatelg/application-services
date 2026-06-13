@@ -12,11 +12,11 @@
     </parent>
 
     <groupId>com.jpg</groupId>
-    <artifactId>portfolio-orchestrator</artifactId>
+    <artifactId>application-services</artifactId>
     <packaging>pom</packaging>
     <version>0.0.1-SNAPSHOT</version>
-    <name>portfolio-orchestrator</name>
-    <description>Portfolio Orchestrator microservice</description>
+    <name>application-services</name>
+    <description>Application services reactor parent</description>
 
     <properties>
         <java.version>21</java.version>
