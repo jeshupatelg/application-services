@@ -18,6 +18,7 @@
 
     <modules>
         <module>startup-lib</module>
+        <module>validation-lib</module>
     </modules>
 
 </project>
