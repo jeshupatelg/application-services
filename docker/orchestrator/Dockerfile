@@ -9,7 +9,7 @@ WORKDIR /app
 
 # Copy the built Spring Boot runnable JAR into the container
 # This expects the context to be the repository root
-COPY app/ms/orchestrator/target/application-services.jar app.jar
+COPY app/ms/orchestrator/target/portfolio-orchestrator.jar app.jar
 
 # Create shared static folder and ensure correct non-root permissions
 RUN mkdir -p /app/shared && chown -R appuser:appgroup /app /app/shared

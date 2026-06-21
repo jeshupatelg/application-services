@@ -6,8 +6,8 @@ import com.jpg.portfolio.model.DeletedArtifact;
 import com.jpg.portfolio.model.UserImpl;
 import com.jpg.portfolio.orchestrator.dto.GetViewsResponse;
 import com.jpg.portfolio.orchestrator.repository.ArtifactRepository;
-import com.jpg.portfolio.orchestrator.repository.UserRepository;
 import com.jpg.portfolio.orchestrator.service.Generators;
+import com.jpg.portfolio.orchestrator.service.OrchestratorService;
 import com.jpg.portfolio.orchestrator.service.PortfolioStorageService;
 import com.jpg.portfolio.orchestrator.validation.ValidationChain;
 import com.jpg.portfolio.orchestrator.validation.ValidationContext;
@@ -29,19 +29,19 @@ import java.util.*;
 @RequestMapping("/admin")
 public class OrchestratorController {
 
-    private final UserRepository userRepository;
     private final ArtifactRepository artifactRepository;
     private final ValidationChain validationChain;
     private final PortfolioStorageService portfolioStorageService;
+    private final OrchestratorService orchestratorService;
 
-    public OrchestratorController(UserRepository userRepository,
-                                  ArtifactRepository artifactRepository,
+    public OrchestratorController(ArtifactRepository artifactRepository,
                                   ValidationChain validationChain,
-                                  PortfolioStorageService portfolioStorageService) {
-        this.userRepository = userRepository;
+                                  PortfolioStorageService portfolioStorageService,
+                                  OrchestratorService orchestratorService) {
         this.artifactRepository = artifactRepository;
         this.validationChain = validationChain;
         this.portfolioStorageService = portfolioStorageService;
+        this.orchestratorService = orchestratorService;
     }
 
     // 1. GET /app/portfolio/admin - Redirect to the static dashboard page
@@ -54,16 +54,8 @@ public class OrchestratorController {
         }
 
         // Make sure the user profile exists and sync alias strictly from JWT attribute
-        UserImpl dbUser = userRepository.findByUsername(user).orElse(null);
         String keycloakAlias = (String) request.getAttribute("alias");
-        if (dbUser == null) {
-            dbUser = new UserImpl(user);
-            dbUser.setAlias(keycloakAlias);
-            userRepository.save(dbUser);
-        } else if (keycloakAlias != null && !keycloakAlias.equals(dbUser.getAlias())) {//alias is mutable since it is Name -> maybe add setting to override keycloak-alias
-            dbUser.setAlias(keycloakAlias);
-            userRepository.save(dbUser);
-        }
+        UserImpl dbUser = orchestratorService.getOrCreateUserWithAlias(user, keycloakAlias);
 
         return ResponseEntity.status(HttpStatus.FOUND)
                 .header(HttpHeaders.LOCATION, request.getContextPath() + "/admin/index.html")
@@ -80,16 +72,8 @@ public class OrchestratorController {
                     .body(Map.of("status", 401, "error", "Unauthorized", "message", "Access Denied: Unauthorized"));
         }
 
-        UserImpl dbUser = userRepository.findByUsername(user).orElse(null);
         String keycloakAlias = (String) request.getAttribute("alias");
-        if (dbUser == null) {//should we create? Technically has permission since reached this far. Keeping for idempotency
-            dbUser = new UserImpl(user);
-            dbUser.setAlias(keycloakAlias);
-            userRepository.save(dbUser);
-        } else if (keycloakAlias != null && !keycloakAlias.equals(dbUser.getAlias())) {//alias is mutable since it is Name
-            dbUser.setAlias(keycloakAlias);
-            userRepository.save(dbUser);
-        }
+        UserImpl dbUser = orchestratorService.getOrCreateUserWithAlias(user, keycloakAlias);
 
         Map<String, Object> details = new HashMap<>();
         details.put("username", dbUser.getUserName());
@@ -108,11 +92,7 @@ public class OrchestratorController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Access Denied: Unauthorized");
         }
 
-        UserImpl dbUser = userRepository.findByUsername(user).orElse(null);
-        if (dbUser == null) {
-            dbUser = new UserImpl(user);
-            userRepository.save(dbUser);
-        }
+        UserImpl dbUser = orchestratorService.getOrCreateUser(user);
 
         GetViewsResponse response = new GetViewsResponse();
         response.setActive(dbUser.getActive());
@@ -162,10 +142,7 @@ public class OrchestratorController {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(securityResult.getReason());
             }
 
-            UserImpl dbUser = userRepository.findByUsername(user).orElseGet(() -> {//This is pushing even for idempotency to create new user for upload
-                UserImpl newUser = new UserImpl(user);
-                return userRepository.save(newUser);
-            });
+            UserImpl dbUser = orchestratorService.getOrCreateUser(user);
 
             String nextVersion = Generators.VersionGenerator.generateVersion(dbUser, isMajor);
             String downloadLink = Generators.DownloadLinkGenerator.generateDownloadLink(user, nextVersion);
@@ -193,7 +170,7 @@ public class OrchestratorController {
                 portfolioStorageService.deployPortfolio(user, fileBytes);
             }
 
-            userRepository.save(dbUser);
+            orchestratorService.saveUser(dbUser);
 
             return ResponseEntity.ok(Map.of(
                     "status", "SUCCESS",
@@ -237,7 +214,7 @@ public class OrchestratorController {
             portfolioStorageService.deployPortfolio(user, targetArtifact.getFile());
 
             dbUser.setActive(version);
-            userRepository.save(dbUser);
+            orchestratorService.saveUser(dbUser);
 
             return ResponseEntity.ok(Map.of(
                     "status", "SUCCESS",
@@ -259,7 +236,7 @@ public class OrchestratorController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Access Denied: Unauthorized");
         }
 
-        UserImpl dbUser = userRepository.findByUsername(user).orElse(null);
+        UserImpl dbUser = orchestratorService.findUserByUsername(user).orElse(null);
         if (dbUser == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User profile not found");
         }
@@ -282,35 +259,26 @@ public class OrchestratorController {
                 continue;
             }
 
-            // Retrieve the cached ActiveArtifact directly from the validation context
-            ActiveArtifact activeArt = (ActiveArtifact) context.getTargetArtifact();
-
-            // Transform polymorphically into a DeletedArtifact copy
-            DeletedArtifact deleted = new DeletedArtifact(
-                    activeArt.getVersion(),
-                    activeArt.getTags(),
-                    null, // Clears the download link
-                    activeArt.getDesc(),
-                    activeArt.getTimestamp(), // Retain original creation timestamp
-                    activeArt.isMajorVersion(),
-                    dbUser
-            );
-
-            // Cascade deletes old ActiveArtifact row, and inserts DeletedArtifact in H2 polymorphically
-            dbUser.getArtifacts().remove(activeArt);
-            dbUser.getArtifacts().add(deleted);
-
-            responseMap.put(targetVersion, Map.of(
-                    "status", "SUCCESS"
-            ));
+            try {
+                orchestratorService.softDeleteSingleArtifact(user, targetVersion);
+                responseMap.put(targetVersion, Map.of(
+                        "status", "SUCCESS"
+                ));
+            } catch (Exception e) {
+                responseMap.put(targetVersion, Map.of(
+                        "status", "FAIL",
+                        "reason", e.getMessage() != null ? e.getMessage() : "Error occurred during deletion"
+                ));
+            }
         }
 
-        userRepository.save(dbUser);
+        // Refresh dbUser state after single-item transactions to check active version status accurately
+        dbUser = orchestratorService.findUserByUsername(user).orElse(dbUser);
 
         if (dbUser.getActive() != null && versionsToDelete.contains(dbUser.getActive())) {
             portfolioStorageService.deletePortfolio(user);
             dbUser.setActive(null);
-            userRepository.save(dbUser);
+            orchestratorService.saveUser(dbUser);
         }
 
         return ResponseEntity.ok(responseMap);
