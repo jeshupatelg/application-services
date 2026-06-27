@@ -1,7 +1,6 @@
 package com.jpg.validation;
 
 import com.jpg.validation.exception.ValidationException;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import java.util.List;
 
@@ -10,7 +9,6 @@ public class ValidationChain {
 
     private final List<Validator> validators;
 
-    @Autowired
     public ValidationChain(List<Validator> validators) {
         this.validators = validators;
     }

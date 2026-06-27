@@ -96,3 +96,11 @@ affinity: {}
 config:
   activeProfile: "prod"
   customVar: "orchestrator-k8s-val"
+
+# Database Configuration (No defaults for username and password to enforce explicit specification)
+database:
+  username: ""
+  password: ""
+  adminUsername: "postgres"
+  adminPassword: "postgrespassword"
+

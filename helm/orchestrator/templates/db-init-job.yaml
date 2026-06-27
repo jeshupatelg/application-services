@@ -1,0 +1,69 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "application-services.fullname" . }}-db-init
+  labels:
+    {{- include "application-services.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
+    "helm.sh/hook-weight": "-5"
+spec:
+  template:
+    metadata:
+      name: {{ include "application-services.fullname" . }}-db-init
+      labels:
+        {{- include "application-services.selectorLabels" . | nindent 8 }}
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: db-init
+          image: postgres:alpine
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              echo "Connecting to host.minikube.internal:5432 to initialize database user..."
+              export PGPASSWORD="$PG_ADMIN_PASSWORD"
+
+              # Wait for postgres to be ready
+              until pg_isready -h host.minikube.internal -p 5432 -U "$PG_ADMIN_USER"; do
+                echo "Waiting for PostgreSQL to be ready..."
+                sleep 2
+              done
+
+              # Check if user already exists
+              USER_EXISTS=$(psql -h host.minikube.internal -p 5432 -U "$PG_ADMIN_USER" -d postgres -tAc "SELECT 1 FROM pg_roles WHERE rolname = '$NEW_DB_USER'")
+
+              if [ "$USER_EXISTS" = "1" ]; then
+                echo "User $NEW_DB_USER already exists. Updating password..."
+                psql -h host.minikube.internal -p 5432 -U "$PG_ADMIN_USER" -d postgres -c "ALTER USER \"$NEW_DB_USER\" WITH PASSWORD '$NEW_DB_PASSWORD';"
+              else
+                echo "Creating user $NEW_DB_USER..."
+                psql -h host.minikube.internal -p 5432 -U "$PG_ADMIN_USER" -d postgres -c "CREATE USER \"$NEW_DB_USER\" WITH LOGIN PASSWORD '$NEW_DB_PASSWORD';"
+              fi
+
+              # Check if database already exists
+              DB_EXISTS=$(psql -h host.minikube.internal -p 5432 -U "$PG_ADMIN_USER" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = 'portfoliodb'")
+
+              if [ "$DB_EXISTS" = "1" ]; then
+                echo "Database portfoliodb already exists."
+              else
+                echo "Creating database portfoliodb..."
+                psql -h host.minikube.internal -p 5432 -U "$PG_ADMIN_USER" -d postgres -c "CREATE DATABASE portfoliodb OWNER \"$NEW_DB_USER\";"
+              fi
+
+              echo "Granting privileges on database portfoliodb to $NEW_DB_USER..."
+              psql -h host.minikube.internal -p 5432 -U "$PG_ADMIN_USER" -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE portfoliodb TO \"$NEW_DB_USER\";"
+
+              echo "Database user and database initialized successfully."
+          env:
+            - name: PG_ADMIN_USER
+              value: {{ .Values.database.adminUsername | quote }}
+            - name: PG_ADMIN_PASSWORD
+              value: {{ .Values.database.adminPassword | quote }}
+            - name: NEW_DB_USER
+              value: {{ required "database.username is required" .Values.database.username | quote }}
+            - name: NEW_DB_PASSWORD
+              value: {{ required "database.password is required" .Values.database.password | quote }}

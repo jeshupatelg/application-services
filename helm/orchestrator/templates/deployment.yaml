@@ -46,6 +46,11 @@ spec:
               value: "-Dlogging.config=/config/logback.xml"
             - name: PORTFOLIO_SANDBOX_URL
               value: {{ .Values.sandbox.url | default (printf "http://%s/app/portfolio/display" .Values.ingress.host) | quote }}
+            - name: SPRING_DATASOURCE_USERNAME
+              value: {{ required "database.username is required" .Values.database.username | quote }}
+            - name: SPRING_DATASOURCE_PASSWORD
+              value: {{ required "database.password is required" .Values.database.password | quote }}
+
           livenessProbe:
             httpGet:
               path: /app/portfolio/actuator/health/liveness
